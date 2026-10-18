@@ -8,7 +8,6 @@ require('dotenv').config();
 const Message = require('./models/Message');
 const User = require('./models/User');
 
-// Define Group Schema for MongoDB persistence
 const groupSchema = new mongoose.Schema({
   name: { type: String, required: true },
   members: { type: [String], default: [] },
@@ -24,7 +23,6 @@ app.use(express.json({ limit: '50mb' }));
 
 const server = http.createServer(app);
 
-// Connect to MongoDB database
 if (process.env.MONGO_URI) {
   mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log('Connected to MongoDB successfully'))
@@ -32,6 +30,27 @@ if (process.env.MONGO_URI) {
 } else {
   console.warn('MONGO_URI missing in .env file!');
 }
+
+// API to register or save a user in MongoDB
+app.post('/api/register', async (req, res) => {
+  try {
+    const { phoneNumber, name, avatar } = req.body;
+    if (!phoneNumber || !name) {
+      return res.status(400).json({ success: false, message: 'Phone number and name are required' });
+    }
+
+    const updatedUser = await User.findOneAndUpdate(
+      { phoneNumber },
+      { name, avatar: avatar || 'https://via.placeholder.com/150' },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+
+    res.status(200).json({ success: true, user: updatedUser });
+  } catch (err) {
+    console.error('Error registering user:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 // API to check if a phone number exists on Vortex Database
 app.post('/api/check-user', async (req, res) => {
@@ -130,30 +149,20 @@ io.on('connection', (socket) => {
 
   socket.on('send_message', async (data) => {
     try {
-      console.log(`Message received for room [${data.room}] from sender [${data.sender}]: ${data.message || data.type}`);
-
-      // Broadcast to other users in the room instantly
       socket.broadcast.to(data.room).emit('receive_message', data);
-
-      // Save to MongoDB
-      try {
-        const newMessage = new Message({
-          room: data.room,
-          sender: data.sender,
-          message: data.message || '',
-          type: data.type || 'text',
-          fileUrl: data.fileUrl || '',
-          fileName: data.fileName || '',
-          fileSize: data.fileSize || '',
-          mapUrl: data.mapUrl || '',
-          replyTo: data.replyTo || null,
-          time: data.time || 'Just now'
-        });
-        await newMessage.save();
-        console.log('Message saved to MongoDB');
-      } catch (dbErr) {
-        console.error('DB Save Warning:', dbErr.message);
-      }
+      const newMessage = new Message({
+        room: data.room,
+        sender: data.sender,
+        message: data.message || '',
+        type: data.type || 'text',
+        fileUrl: data.fileUrl || '',
+        fileName: data.fileName || '',
+        fileSize: data.fileSize || '',
+        mapUrl: data.mapUrl || '',
+        replyTo: data.replyTo || null,
+        time: data.time || 'Just now'
+      });
+      await newMessage.save();
     } catch (err) {
       console.error('Error handling send_message:', err);
     }
@@ -164,7 +173,6 @@ io.on('connection', (socket) => {
       io.to(room).emit('message_deleted', messageId);
       if (mongoose.Types.ObjectId.isValid(messageId)) {
         await Message.findByIdAndDelete(messageId);
-        console.log(`Deleted from MongoDB: ${messageId}`);
       }
     } catch (err) {
       console.error('Error deleting message:', err);
