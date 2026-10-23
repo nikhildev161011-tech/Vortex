@@ -21,6 +21,10 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
+app.get('/ping', (req, res) => {
+  res.status(200).send('pong - Vortex Server is Active!');
+});
+
 const server = http.createServer(app);
 
 if (process.env.MONGO_URI) {
@@ -31,7 +35,6 @@ if (process.env.MONGO_URI) {
   console.warn('MONGO_URI missing in .env file!');
 }
 
-// API to register or save a user in MongoDB
 app.post('/api/register', async (req, res) => {
   try {
     const { phoneNumber, name, avatar } = req.body;
@@ -52,7 +55,6 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// API to check if a phone number exists on Vortex Database
 app.post('/api/check-user', async (req, res) => {
   try {
     const { phoneNumber } = req.body;
@@ -68,7 +70,6 @@ app.post('/api/check-user', async (req, res) => {
   }
 });
 
-// API to update user profile (Avatar, Name, About)
 app.post('/api/update-profile', async (req, res) => {
   try {
     const { phoneNumber, name, avatar, about } = req.body;
@@ -89,7 +90,6 @@ app.post('/api/update-profile', async (req, res) => {
   }
 });
 
-// API to create a new group
 app.post('/api/create-group', async (req, res) => {
   try {
     const { name, members, createdBy, avatar } = req.body;
@@ -107,7 +107,6 @@ app.post('/api/create-group', async (req, res) => {
   }
 });
 
-// API to fetch groups for a specific user phone number
 app.get('/api/groups/:phone', async (req, res) => {
   try {
     const { phone } = req.params;
@@ -119,7 +118,6 @@ app.get('/api/groups/:phone', async (req, res) => {
   }
 });
 
-// API to get chat history for a room
 app.get('/api/messages/:room', async (req, res) => {
   try {
     const { room } = req.params;
